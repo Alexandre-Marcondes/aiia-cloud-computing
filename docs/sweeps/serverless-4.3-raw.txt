@@ -1,0 +1,66 @@
+SLS Practice 1 -- Part 4.3: multi-camera sweep vs the Part 3 serverless pipeline
+================================================================================
+Note     : deployment identifiers are shown as <placeholders>; nothing else altered.
+Target   : Functions Flex `<function-app>` + AI Vision S1 `<vision-account>` + storage `<storage-account>`
+Sender   : src/local_stream.py --cameras N --interval 5 --seconds 60 --no-display
+           (uploads to the `raw` container via --blob-connection-string)
+Signal   : the `raw` blob count, sampled every 10 s. The function deletes each blob
+           after processing, so the count is the *unprocessed backlog* -- a direct,
+           real-time signal, unlike the Azure Monitor metric windows which lag and
+           overlap between runs.
+Load     : 1 frame / 5 s per camera (the Part 4 cadence); offered rate = N/5 fps.
+Sender   : validated as NOT the bottleneck -- N=256 uploaded 3073/3072 frames (51 fps).
+================================================================================
+
+
+---- raw backlog curve, N=48 (offered 9.6 fps) ---- drained; keeps up
+reset 0 | t=10..60s: 10 13 12 11 8 0 | +30s 0 | +60s 0   (sent 577/576)
+
+---- N=64 (12.8 fps) ---- drained; keeps up
+reset 0 | t=10..60s: 17 15 13 12 13 0 | +30s 0            (sent 769/768)
+
+---- N=128 (25.6 fps) ---- drained; keeps up (last good point)
+reset 0 | t=10..60s: 38 43 53 32 40 0 | +30s 0            (sent 1537/1536)
+
+---- N=144 (28.8 fps) ---- overflow; backlog stalls
+reset 0 | t=10..60s: 99 148 180 243 211 87 | +20s 87 | +40s 87   (sent 1729/1728)
+
+---- N=160 (32.0 fps) ---- overflow; backlog stalls
+reset 0 | t=10..60s: 92 156 230 310 352 163 | +20s 163 | +40s 163  (sent 1921/1920)
+
+---- N=192 (38.4 fps) ---- overflow; backlog stalls
+reset 0 | t=10..60s: 203 284 337 399 472 252 | +20s 252          (sent 2305/2304)
+
+---- N=256 (51.2 fps) ---- overflow; backlog stalls (worst)
+reset 0 | t=10..60s: 241 424 605 786 797 626 | +30s 626 | +60s 625 | +90s 625
+(sent 3073/3072)
+
+A stalled backlog is stuck in Event Grid's retry backoff (invocations fail on Vision
+429 throttling), so it does not drain; the `raw` container was cleared after each run
+to stop the retry storm.
+
+
+---- N=256 overload signature (deploy/measure_part3.sh --minutes 6) ----
+-- response time (server-side, process_frame) --
+Avg_ms 2478 | Calls 10533 | Failed 6548 | Max 37592 | Min 408 | P95 4156 | Succeeded 3985
+exceptions: 9765
+-- compute (Functions Flex) --
+executions 6362 | execution units 3958988800 (MB.ms)
+-- AI Vision --
+calls 24950 (successful 5579) | latency sum 2910387 ms
+   -> only 22% of Vision calls succeed: the retry storm (our bounded 429-retry +
+      Event Grid redelivery) re-calls Vision on every throttle.
+-- storage --
+transactions 102858 | ingress 5901.82 MB | egress 5806.08 MB
+-- event grid --
+published 13802 / matched 5034 / delivered 5034 / failed 0
+
+
+---- healthy-side metric reports (deploy/sweep_serverless.sh, per N) ----
+NOTE: Azure Monitor windows (2 min) lag and overlap between runs, so the per-N
+counts below are approximate; the *backlog curve* is the reliable signal.
+N=32: invocations 311 (avg 779 ms, failed 1, p95 904); Vision 639 (634 ok);
+      Event Grid 1805/632/632/0; ingress 409.74 MB
+N=64: invocations 662 (avg 885 ms, failed 4, p95 1467); Vision 372 (372 ok);
+      Event Grid 767/373/373/0; ingress 220.43 MB
+================================================================================

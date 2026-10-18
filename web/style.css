@@ -1,0 +1,165 @@
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+/* Keep the dashboard a comfortable width on large monitors. */
+.page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+h1 { margin: 0 0 4px; }
+
+.status { font-style: italic; margin: 0 0 16px; }
+.status.ok { color: #1a7f37; }
+.status.stale { color: #b42318; }
+
+/* Charts on the left, video on the right, with a draggable divider between them.
+   The charts' width is a CSS variable (`--chart-w`, set by script.js on drag);
+   the video column takes the rest. Because the chart stack stretches to the video
+   stage's height and the canvases are absolutely positioned, both sides adapt to
+   whatever width the divider leaves them. */
+.dashboard {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    /* Fill the viewport below the heading so both columns use the full height;
+       the charts are no longer capped by the video's height. */
+    height: calc(100vh - 120px);
+    min-height: 460px;
+}
+.charts {
+    flex: 0 0 var(--chart-w, 30%);
+    display: grid;
+    /* Three equal rows, never collapsing below a legible floor. */
+    grid-template-rows: repeat(3, minmax(84px, 1fr));
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+}
+/* Vertical drag handle: pointer events cover mouse and touch. */
+.splitter {
+    flex: 0 0 16px;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+.splitter::before {
+    content: "";
+    width: 4px;
+    height: 100%;
+    border-radius: 2px;
+    background: #d0d4da;
+    transition: background 0.15s ease;
+}
+.splitter:hover::before,
+.splitter:focus-visible::before,
+.splitter.dragging::before {
+    background: #8a94a6;
+}
+.splitter:focus-visible { outline: none; }
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+.chart-title {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+/* Telemetry panel hides itself when processing.csv is absent/empty. */
+#processingPanel[hidden] { display: none; }
+/* Chart height comes from its grid row (not a fixed aspect ratio), so the
+   canvas stretches to fill the column exactly like the video does. The canvas is
+   taken out of flow so its intrinsic size cannot drive the row height — the
+   video column sets the height and the charts follow. */
+.chart-panel {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    position: relative; /* Chart.js (responsive) sizes against this */
+    overflow: hidden;
+}
+.chart-panel canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Right column: single annotated frame (single camera) or the tile grid. The
+   column stretches to the dashboard height; the video keeps its 16:9 shape and
+   is centred vertically on its side, so a tall column just adds even space above
+   and below it. */
+.views {
+    flex: 1 1 0;
+    position: relative;
+    min-width: 0;
+}
+.image-panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.image-panel img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    margin: auto 0; /* centre the video vertically in the column */
+    background: #000;
+    border-radius: 6px;
+}
+
+.frames-grid {
+    position: absolute;
+    inset: 0;
+    display: none;
+    /* Overridden per camera count in script.js: 2-3 streams stack in one column,
+       4+ tile two-up. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(0, 1fr);
+    justify-items: center;
+    gap: 12px;
+    min-height: 0;
+}
+/* Each tile keeps its 16:9 shape, centred in its cell, so 2-3 cameras read as a
+   vertical strip of thumbnails (not a stretched/letterboxed row). */
+.frames-grid img {
+    display: block;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    background: #000;
+    border-radius: 6px;
+}
+/* Two-up (4+ cameras): size tiles by width so they stay 16:9 and centre the
+   block vertically, instead of stretching each tile to the tall row height. */
+.frames-grid.cols-2 {
+    grid-auto-rows: auto;
+    align-content: center;
+}
+.frames-grid.cols-2 img {
+    width: 100%;
+    height: auto;
+}
+/* Multi-camera: the tile grid replaces the single frame on the right. */
+body.multi #frames { display: grid; }
+body.multi .image-panel { display: none; }
+
+/* Portrait / narrow viewports: stack (video on top), no divider. */
+@media (orientation: portrait), (max-width: 860px) {
+    .dashboard { display: flex; flex-direction: column; height: auto; }
+    .charts { flex: none; width: auto; grid-template-rows: repeat(3, minmax(0, 40vh)); }
+    .views { order: -1; flex: none; }
+    .splitter { display: none; }
+}

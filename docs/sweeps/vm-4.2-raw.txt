@@ -1,0 +1,116 @@
+SLS Practice 1 -- Part 4.2: multi-camera sweep against the Part 2 VM (raw capture)
+================================================================================
+Note        : deployment identifiers are shown as <placeholders>; nothing else altered.
+Date        : 2026-10-11
+Target      : Azure VM <vm-public-ip>  (Standard B1s, Ubuntu, 887 MB RAM + 2 GB swap)
+Receiver    : src/cloud_receiver.py (sls-receiver, :8000) reached via SSH local-forward
+Sender      : src/local_stream.py --cameras N --interval 5 --seconds 30
+Load        : 1 frame every 5 s per camera (Practice 1 Part 4 cadence)
+Cadence     : N = 1, 2, 4, 6, 8, 10
+Measurement : deploy/measure.sh (service CPUUsageNSec, cgroup memory, eth0 rx/tx) per window
+================================================================================
+
+
+===== N = 1 =====
+>> sampling 30s -- generate external load now
+
+== vm-1 ==
+window          : 30.0 s
+cpu (process)   : 1.99 s  (7% of one core, 3% of all)
+memory (cgroup) : current 602 MB, peak 661 MB
+network eth0    : rx 1.52 MB (0.40 Mbps), tx 8.58 MB (2.28 Mbps)
+system memory   : used 744 MB, available 142 MB
+swap used       : 1024 MB
+
+
+===== N = 2 =====
+>> sampling 30s -- generate external load now
+
+== vm-2 ==
+window          : 30.0 s
+cpu (process)   : 4.76 s  (16% of one core, 8% of all)
+memory (cgroup) : current 608 MB, peak 661 MB
+network eth0    : rx 4.34 MB (1.16 Mbps), tx 0.08 MB (0.02 Mbps)
+system memory   : used 742 MB, available 144 MB
+swap used       : 1024 MB
+Uploading 2 cameras ['cam-1', 'cam-2'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 7
+camera cam-2: sent 6
+
+
+===== N = 4 =====
+>> sampling 30s -- generate external load now
+
+== vm-4 ==
+window          : 30.0 s
+cpu (process)   : 8.61 s  (29% of one core, 14% of all)
+memory (cgroup) : current 587 MB, peak 661 MB
+network eth0    : rx 7.98 MB (2.13 Mbps), tx 8.66 MB (2.31 Mbps)
+system memory   : used 721 MB, available 166 MB
+swap used       : 1027 MB
+
+
+===== N = 6 =====
+>> sampling 30s -- generate external load now
+
+== vm-6 ==
+window          : 30.0 s
+cpu (process)   : 14.44 s  (48% of one core, 24% of all)
+memory (cgroup) : current 596 MB, peak 661 MB
+network eth0    : rx 12.96 MB (3.45 Mbps), tx 0.20 MB (0.05 Mbps)
+system memory   : used 728 MB, available 158 MB
+swap used       : 1023 MB
+Uploading 6 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 7
+camera cam-2: sent 6
+camera cam-3: sent 6
+camera cam-4: sent 6
+camera cam-5: sent 6
+camera cam-6: sent 6
+
+
+===== N = 8 =====
+>> sampling 30s -- generate external load now
+
+== vm-8 ==
+window          : 30.3 s
+cpu (process)   : 14.21 s  (47% of one core, 23% of all)
+memory (cgroup) : current 619 MB, peak 661 MB
+network eth0    : rx 13.70 MB (3.61 Mbps), tx 8.96 MB (2.36 Mbps)
+system memory   : used 754 MB, available 132 MB
+swap used       : 1024 MB
+Uploading 8 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 5
+camera cam-2: sent 5
+camera cam-3: sent 5
+camera cam-4: sent 5
+camera cam-5: sent 5
+camera cam-6: sent 5
+camera cam-7: sent 5
+camera cam-8: sent 4
+
+
+===== N = 10 =====
+>> sampling 30s -- generate external load now
+
+== vm-10 ==
+window          : 31.4 s
+cpu (process)   : 1.76 s  (6% of one core, 3% of all)
+memory (cgroup) : current 623 MB, peak 661 MB
+network eth0    : rx 2.23 MB (0.57 Mbps), tx 9.08 MB (2.31 Mbps)
+system memory   : used 783 MB, available 103 MB
+swap used       : 1026 MB
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Uploading 10 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 1
+camera cam-2: sent 1
+camera cam-3: sent 1
+camera cam-4: sent 1
+camera cam-5: sent 1
+camera cam-6: sent 1
+camera cam-7: sent 1
+camera cam-8: sent 1
+camera cam-9: sent 1
+camera cam-10: sent 1

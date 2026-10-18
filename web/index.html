@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Person Count Graph</title>
+    <!-- Include Chart.js library for creating charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="page">
+        <h1>Person Count Graph</h1>
+
+        <!-- Server-side time of the newest sample; turns red when the streamer stops. -->
+        <p id="lastUpdate" class="status">Last update: &mdash;</p>
+
+        <div class="dashboard">
+            <div class="charts">
+                <section class="panel">
+                    <h2 class="chart-title">Person count over time</h2>
+                    <div class="chart-panel">
+                        <canvas id="personCountChart"></canvas>
+                    </div>
+                </section>
+                <!-- Per-frame telemetry; hidden until a non-empty processing.csv loads. -->
+                <section id="processingPanel" class="panel" hidden>
+                    <h2 class="chart-title">Processing time: service vs queue wait (ms)</h2>
+                    <div class="chart-panel">
+                        <canvas id="processingChart"></canvas>
+                    </div>
+                </section>
+                <!-- Person-count histogram; always visible. -->
+                <section class="panel">
+                    <h2 class="chart-title">Person-count distribution (histogram)</h2>
+                    <div class="chart-panel">
+                        <canvas id="histogramChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Drag to resize the charts vs. the video stage. -->
+            <div id="splitter" class="splitter" role="separator" aria-orientation="vertical"
+                 tabindex="0" aria-label="Resize charts and video"></div>
+
+            <div class="views">
+                <section class="panel image-panel">
+                    <h2 class="chart-title">Latest annotated frame</h2>
+                    <img id="reloadImage" src="processed_frame.jpg" alt="Latest annotated frame">
+                </section>
+                <div id="frames" class="frames-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include your JavaScript code here -->
+    <script src="script.js"></script>
+</body>
+</html>

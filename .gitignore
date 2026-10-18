@@ -1,0 +1,34 @@
+# Virtualenv
+venv/
+.venv/
+
+# Editor / local tooling (VS Code Azure Functions init)
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Ruff
+.ruff_cache/
+
+# Part 3 deployment bundle (assembled from serverless/ + shared src/ units)
+build/
+
+# Secrets / local config
+.env
+
+# macOS
+.DS_Store
+
+# Model weights (downloaded, not source)
+*.pt
+
+# Runtime output (keep the directory's AGENTS.md)
+data/*
+!data/AGENTS.md
+
+# Debug media (covered by data/* above; listed for clarity)
+data/*.mp4
+

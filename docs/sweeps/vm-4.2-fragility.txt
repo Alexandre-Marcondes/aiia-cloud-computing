@@ -1,0 +1,154 @@
+SLS Practice 1 -- Part 4.2: multi-camera sweep vs the Part 2 VM (fragility runs)
+================================================================================
+Same setup as vm-4.2-cooldown-sweep.txt, but run when the VM was already
+memory/swap-degraded from prior heavy sweeps (887 MB RAM is tight: the
+receiver alone is ~512 MB RSS). These show the swap death-spiral.
+================================================================================
+
+
+----- repeat of N=13,14 (swap ~1024 MB BEFORE the run) -----
+
+== N = 13 ==
+>> sampling 60s -- generate external load now
+
+== vm-13 ==
+window          : 60.2 s
+cpu (process)   : 7.08 s  (12% of one core, 6% of all)
+memory (cgroup) : current 625 MB, peak 644 MB
+network eth0    : rx 6.15 MB (0.82 Mbps), tx 5.52 MB (0.73 Mbps)
+system memory   : used 776 MB, available 110 MB
+swap used       : 1024 MB
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Uploading 13 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10', 'cam-11', 'cam-12', 'cam-13'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 2
+camera cam-2: sent 2
+camera cam-3: sent 2
+camera cam-4: sent 2
+camera cam-5: sent 2
+camera cam-6: sent 1
+camera cam-7: sent 1
+camera cam-8: sent 1
+camera cam-9: sent 2
+camera cam-10: sent 2
+camera cam-11: sent 2
+camera cam-12: sent 2
+camera cam-13: sent 1
+
+== N = 14 ==
+>> sampling 60s -- generate external load now
+
+== vm-14 ==
+window          : 66.8 s
+cpu (process)   : 14.25 s  (21% of one core, 11% of all)
+memory (cgroup) : current 618 MB, peak 647 MB
+network eth0    : rx 15.47 MB (1.85 Mbps), tx 8.49 MB (1.02 Mbps)
+system memory   : used 800 MB, available 86 MB
+swap used       : 1025 MB
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Uploading 14 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10', 'cam-11', 'cam-12', 'cam-13', 'cam-14'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 3
+camera cam-2: sent 3
+camera cam-3: sent 3
+camera cam-4: sent 3
+camera cam-5: sent 3
+camera cam-6: sent 3
+camera cam-7: sent 3
+camera cam-8: sent 3
+camera cam-9: sent 3
+camera cam-10: sent 3
+camera cam-11: sent 3
+camera cam-12: sent 3
+camera cam-13: sent 3
+camera cam-14: sent 2
+
+
+----- restart-per-N N=12,13,14 (VM already degraded; swap 524-735 MB) -----
+
+== N = 12 ==
+>> sampling 60s -- generate external load now
+
+== vm-12 ==
+window          : 60.3 s
+cpu (process)   : 4.85 s  (8% of one core, 4% of all)
+memory (cgroup) : current 631 MB, peak 657 MB
+network eth0    : rx 6.79 MB (0.90 Mbps), tx 0.11 MB (0.01 Mbps)
+system memory   : used 727 MB, available 159 MB
+swap used       : 524 MB
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Warning: failed to send frame to http://127.0.0.1:8000/frame: timed out
+Uploading 12 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10', 'cam-11', 'cam-12'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 2
+camera cam-2: sent 2
+camera cam-3: sent 2
+camera cam-4: sent 2
+camera cam-5: sent 2
+camera cam-6: sent 2
+camera cam-7: sent 2
+camera cam-8: sent 2
+camera cam-9: sent 1
+camera cam-10: sent 2
+camera cam-11: sent 1
+camera cam-12: sent 1
+
+== N = 13 ==
+>> sampling 60s -- generate external load now
+
+== vm-13 ==
+window          : 60.0 s
+cpu (process)   : 6.02 s  (10% of one core, 5% of all)
+memory (cgroup) : current 628 MB, peak 657 MB
+network eth0    : rx 6.87 MB (0.92 Mbps), tx 2.20 MB (0.29 Mbps)
+system memory   : used 727 MB, available 159 MB
+swap used       : 735 MB
+Uploading 13 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10', 'cam-11', 'cam-12', 'cam-13'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 2
+camera cam-2: sent 2
+camera cam-3: sent 2
+camera cam-4: sent 2
+camera cam-5: sent 2
+camera cam-6: sent 2
+camera cam-7: sent 2
+camera cam-8: sent 2
+camera cam-9: sent 2
+camera cam-10: sent 1
+camera cam-11: sent 2
+camera cam-12: sent 2
+camera cam-13: sent 1
+
+== N = 14 ==
+>> sampling 60s -- generate external load now
+
+== vm-14 ==
+window          : 60.8 s
+cpu (process)   : 6.50 s  (11% of one core, 5% of all)
+memory (cgroup) : current 620 MB, peak 656 MB
+network eth0    : rx 8.93 MB (1.18 Mbps), tx 0.65 MB (0.09 Mbps)
+system memory   : used 677 MB, available 209 MB
+swap used       : 671 MB
+Uploading 14 cameras ['cam-1', 'cam-2', 'cam-3', 'cam-4', 'cam-5', 'cam-6', 'cam-7', 'cam-8', 'cam-9', 'cam-10', 'cam-11', 'cam-12', 'cam-13', 'cam-14'] to http://127.0.0.1:8000 (no local processing)
+camera cam-1: sent 2
+camera cam-2: sent 2
+camera cam-3: sent 2
+camera cam-4: sent 2
+camera cam-5: sent 2
+camera cam-6: sent 2
+camera cam-7: sent 2
+camera cam-8: sent 2
+camera cam-9: sent 2
+camera cam-10: sent 2
+camera cam-11: sent 1
+camera cam-12: sent 2
+camera cam-13: sent 1
+camera cam-14: sent 2

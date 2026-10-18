@@ -1,0 +1,55 @@
+[project]
+name = "grabber"
+version = "0.1.0"
+description = "Webcam frame grabber with YOLO person detection"
+requires-python = ">=3.10"
+dependencies = [
+    # Core detection: YOLOv8 inference (src/detection.py) and multi-frame tracking.
+    # Pulls in torch/torchvision as its backend.
+    "ultralytics",
+    # Deep-learning runtime behind ultralytics; listed explicitly as a core dep.
+    "torch",
+    # Frame capture, video decode (H.264/MP4 via FFmpeg), and image I/O.
+    "opencv-python",
+    # Array math shared by OpenCV and Ultralytics.
+    "numpy",
+    # Person-count chart and saved plot in src/plotting.py.
+    "matplotlib",
+    # Tracking backend required by ultralytics `model.track()` (stable person IDs).
+    "lap>=0.5.12",
+]
+
+[project.optional-dependencies]
+# Utility scripts that are not needed to run the detection pipeline.
+# Install with: pip install -e ".[utils]"
+utils = [
+    # Downloading test clips from YouTube (scripts/download_video.py). The script
+    # prefers this Python API and falls back to the `yt-dlp` executable on PATH.
+    "yt-dlp",
+]
+# Diagram rendering for documentation (scripts/build_architecture_diagram.py).
+# Needs the Graphviz `dot` binary; install with: pip install -e ".[docs]"
+docs = [
+    "diagrams",
+]
+# Local sender for the Part 3 serverless pipeline (src/blob_transport.py,
+# src/local_stream.py --blob-connection-string). Install with:
+# pip install -e ".[serverless]"
+serverless = [
+    "azure-storage-blob",
+]
+
+[dependency-groups]
+dev = ["pre-commit", "pytest", "ruff>=0.15", "azure-storage-blob"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# Source roots for import classification (isort first-party detection).
+src = ["src", "serverless"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"

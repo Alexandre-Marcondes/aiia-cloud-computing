@@ -1,0 +1,27 @@
+# Ruff lint/format + unit tests, wired into git via the pre-commit framework.
+# The checks run on `git push` (not on commit).
+# Install the hook once per clone:  venv/bin/pre-commit install
+default_install_hook_types: [pre-push]
+default_stages: [pre-push]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      # Lint (report only, no --fix, so the hook never rewrites code).
+      - id: ruff
+        name: ruff check
+        files: ^(scripts|src|serverless|tests|web)/
+      # Format check only (never rewrites).
+      - id: ruff-format
+        name: ruff format --check
+        args: [--check]
+        files: ^(scripts|src|serverless|tests|web)/
+  - repo: local
+    hooks:
+      # Unit tests, run from the project venv over the whole suite.
+      - id: pytest
+        name: pytest
+        entry: venv/bin/pytest
+        language: system
+        pass_filenames: false
+        always_run: true

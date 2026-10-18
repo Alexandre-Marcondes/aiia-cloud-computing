@@ -1,0 +1,46 @@
+# SLS cloud receiver — runs src/cloud_receiver.py as a service on the Azure VM (Part 2).
+#
+# This file is a TEMPLATE, not a ready-made unit: the @...@ placeholders are
+# filled in at provision time by `deploy/setup_vm.sh`, which derives them from
+# the machine it runs on (the invoking user and the checkout it lives in) and
+# installs the result. So, on the VM, from the checkout root:
+#
+#   bash deploy/setup_vm.sh              # renders + installs + enables the unit
+#
+# and to re-render just the unit after moving the checkout or editing this file:
+#
+#   bash deploy/setup_vm.sh --unit-only
+#
+# Do not `cp` this file to /etc/systemd/system by hand -- the placeholders would
+# stay literal and systemd would reject the unit.
+#
+# Why a template instead of an EnvironmentFile: systemd expands an
+# `EnvironmentFile=`'s variables only inside command lines (`ExecStart=`).
+# `User=` and `WorkingDirectory=` take their value literally -- checked with
+# `systemd-analyze verify` on systemd 255, which reports `User=${SOME_USER}` as
+# "Accepting user/group name '${SOME_USER}'" and the unit as having a fatal
+# configuration error, and rejects `WorkingDirectory=${SOME_DIR}` as a
+# non-absolute path. An EnvironmentFile-based unit therefore could not set the
+# run-as user or the working directory -- exactly the machine-specific settings
+# that the original unit hardcoded. Substituting the whole unit at provision
+# time covers every setting uniformly.
+
+[Unit]
+Description=SLS cloud receiver (YOLO person counting)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@SLS_USER@
+WorkingDirectory=@SLS_WORKDIR@
+ExecStart=@SLS_VENV@/bin/python src/cloud_receiver.py \
+    --host 0.0.0.0 --port 8000 \
+    --csv @WEB_ROOT@/database.csv \
+    --frame-out @WEB_ROOT@/processed_frame.jpg \
+    --plot-out @WEB_ROOT@/plot.png \
+    --processing-csv @WEB_ROOT@/processing.csv
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
