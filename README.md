@@ -18,10 +18,11 @@ public webcam (HLS) → frame capture → YOLOv8 person detection → CSV log �
                                        (class 0, imgsz=1280)
 ```
 
-The source camera is a fixed SkylineWebcams stream (Salò, Lake Garda). Person detection uses the
-pretrained **YOLOv8n** model via [Ultralytics](https://ultralytics.com/yolov8). For deterministic
-local testing the same pipeline can read a downloaded clip instead of the live stream — see
-[Testing with a local video](#testing-with-a-local-video).
+The deployed sensor is a fixed SkylineWebcams stream (Salò, Lake Garda), reached with `--source
+live`. Because a live public stream cannot be used as a test fixture, the **default** frame source is
+a downloaded clip, read in real time — see
+[Testing with a local video](#testing-with-a-local-video). Person detection uses the pretrained
+**YOLOv8n** model via [Ultralytics](https://ultralytics.com/yolov8).
 
 ## Assignment parts
 
@@ -29,8 +30,8 @@ local testing the same pipeline can read a downloaded clip instead of the live s
 2. **Cloud VM** — ship frames to an Azure `Standard_B2ats_v2` VM, run detection there, host a webpage on
    its public IP; measure efficiency, CPU/memory, bandwidth, cost, response time.
 3. **Serverless** — upload frames to a raw blob container every 0.5 s; a blob-trigger Azure Function
-   processes them (optionally via Azure Computer Vision tagging); a static site in a separate
-   container shows the results.
+   processes them with **Azure AI Vision** (Image Analysis 4.0, `people`); a static site in a
+   separate container shows the results.
 4. **Multi-camera** — scale to several cameras sending 1 frame / 5 s each, and find the VM's and the
    serverless app's processing limits.
 
@@ -40,7 +41,7 @@ Deliverable: a PDF project report (steps, problems, design decisions, conclusion
 
 | Path | Contents |
 | --- | --- |
-| `docs/` | Course PDFs, the Part 3 design doc (`architecture.md`), the performance reference (`performance.md`), committed sweep captures (`sweeps/`), and the measurement reports (`measurements/`) |
+| `docs/` | Course PDFs, the Part 3 design doc (`architecture.md`), the performance reference (`performance.md`), the monetary-cost analysis (`cost.md`), committed sweep captures (`sweeps/`), and the measurement reports (`measurements/`) |
 | `src/` | Python pipeline — frame capture + person detection (local, VM receiver, serverless adapter) |
 | `scripts/` | CLI helpers — `download_video.py`, the architecture-diagram builder, and an offline web preview |
 | `deploy/` | Azure deployment — VM setup/sync/measure + the Part 3 deploy and Part 4 sweep scripts |
@@ -48,6 +49,21 @@ Deliverable: a PDF project report (steps, problems, design decisions, conclusion
 | `models/` | Documents the YOLO weights (downloaded to the repo root on first use; not committed) |
 | `data/` | Local runtime output (`database.csv`, annotated frame, chart, downloaded clips; gitignored) |
 | `tests/` | Offline unit tests (`pytest`; also runnable via `python -m unittest discover -s tests`) |
+
+## Getting started
+
+**Requirements:** Python ≥ 3.10 and the dependencies from [`pyproject.toml`](pyproject.toml)
+installed into a virtualenv (`pip install -e .`); lint/format with **ruff** (`line-length = 100`,
+double quotes).
+
+```sh
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+
+python scripts/download_video.py "https://www.youtube.com/watch?v=3FXUw98rrUY"
+python src/local_test_platform.py   # run from the repo root; YOLO weights download automatically
+```
 
 ## Testing with a local video
 
@@ -57,8 +73,8 @@ testing deterministic we use a downloaded clip as the frame source.
 
 The reference clip is *People Walking Past the Camera* (free stock footage, 46 s, 1920×1080):
 <https://www.youtube.com/watch?v=3FXUw98rrUY>. It has a continuous, well-lit flow of people who are
-large in frame, so YOLOv8n detects them reliably — sampling every second, the count ran from 1 to 15
-and **no frame was empty**, which makes it a good stand-in for a busy surveillance camera.
+large in frame, so YOLOv8n detects them reliably, and **no sample comes out empty** — which makes it
+a good stand-in for a busy surveillance camera and a harder test than a mostly empty street.
 
 Download it (H.264/MP4, so OpenCV can always decode it). The downloader needs `yt-dlp` — either the
 Python module (`pip install -e ".[utils]"`) or the `yt-dlp` executable on `PATH`:
@@ -115,9 +131,9 @@ bash deploy/stream_serverless.sh --source "<url>"     # through the raw containe
 
 Part 2 moves detection to an Azure VM. `src/cloud_receiver.py` runs there as a service
 (`deploy/sls-receiver.service`): it accepts raw-JPEG POSTs on `/frame`, counts people with the same
-YOLOv8 detector, and writes `database.csv` + `processed_frame.jpg` into the Apache document root. The
-static `web/` page is served from that same root, so the frontend just polls those two files — no
-API, database, or websocket involved. The page shows the counts time-series, a **person-count
+YOLOv8 detector, and writes `database.csv`, `processed_frame.jpg` and the per-frame telemetry
+`processing.csv` into the Apache document root. The static `web/` page is served from that same root,
+so the frontend just polls those files — no API, database, or websocket involved. The page shows the counts time-series, a **person-count
 histogram** (Task 2.4), the per-frame processing-time chart, and the latest annotated frame.
 
 On the local machine, point the streamer at the receiver instead of processing locally. The receiver
@@ -182,23 +198,24 @@ Measured on the `Standard_B2ats_v2` (2 vCPU, 887 MiB RAM, 2 GB swap):
 
 | Scenario | CPU (process) | Memory (cgroup) | Network (eth0) | Latency |
 | --- | --- | --- | --- | --- |
-| Idle (15 s) | 0.00 s (0%) | 509 MB current / 527 MB peak; 128 MB swap | ≈ 0 | — |
-| Inference, 12 frames | 4.82 s (20% of one core) | peak 527 MB; swap 128 → 324 MB | negligible | median **0.37 s**/frame (first 15.7 s, second 2.3 s) |
-| Egress, 40 page polls (20 s) | ≈ 0 | peak 527 MB | **tx 26 MB (10.5 Mbps)** | — |
+| Idle (15 s) | 0.00 s (0%) | 558 MB current / 621 MB peak | ≈ 0 | — |
+| Inference, 12 frames | 5.12 s (21% of one core) | 415 MB current / 621 MB peak | tx 8.37 MB | round-trip median **432 ms** (server median 423 ms, p95 2.2 s) |
+| Egress, 40 page polls (22 s) | 0.00 s (0%) | 565 MB current / 619 MB peak | **tx 16.27 MB (5.91 Mbps)** | — |
 
 Findings:
 
-- **Steady-state detection ≈ 0.37 s/frame** (~2.7 fps for one stream). Startup is the expensive part:
-  ~11 s of model load plus a ~16 s first inference, so the model is warmed at startup and the client
+- **Steady-state detection is ≈ 0.42 s/frame** server-side (round-trip median 432 ms, server median
+  423 ms, ~2.3 fps for one stream). Startup is the expensive part: ~11 s of model load plus a ~16 s
+  first inference (15.7 s cold against 0.37 s warm), so the model is warmed at startup and the client
   timeout must exceed it.
-- **Memory, not CPU, is the binding constraint.** A burst uses only ~20% of one core, but the service
-  holds ~0.5 GB and pushes 128 → 324 MB into swap on the 887 MiB VM. More RAM (or a smaller
-  model/`imgsz`) would help more than more CPU.
+- **Memory, not CPU, is the binding constraint.** A burst uses only ~21% of one core, but the service
+  holds **0.55–0.62 GB** of the 887 MiB VM. More RAM (or a smaller model/`imgsz`) would help more than
+  more CPU.
 - **Egress dwarfs ingress.** The frontend re-downloads the ~0.5 MB annotated frame every second, so a
-  single open page costs ~43 GB/day (~1.3 TB/month) — versus ~7 GB/day of frames uploaded at
-  1 frame/5 s (ingress is free on Azure). Levers: downscale the served image, lower the poll rate, or
-  serve only the chart. Egress beyond the 100 GB/month free allowance is the main cost risk, far above
-  the ~US$0.01/h `Standard_B2ats_v2` itself.
+  single open page measured **5.91 Mbps ≈ 64 GB/day** (~1.9 TB/month) — versus ~7 GB/day of frames
+  uploaded at 1 frame/5 s (ingress is free on Azure). Levers: downscale the served image, lower the
+  poll rate, or serve only the chart. Egress beyond the 100 GB/month free allowance is the main cost
+  risk, far above the ~US$0.01/h `Standard_B2ats_v2` itself.
 
 **Cost protocol.** Actual spend is read by hand from **Portal → Cost Management → Cost analysis**,
 scoped to the resource group `<serverless-resource-group>`, with a **custom date range per measurement window**
@@ -213,8 +230,8 @@ Part 3 replaces the always-on VM with a triggered Azure Function. The sender upl
 the private `raw` container of the storage account `<storage-account>` every 0.5 s; an **Event Grid**
 `BlobCreated` event invokes the Flex Consumption Function App `<function-app>`, which counts people with
 **Azure AI Vision** (Image Analysis 4.0 `people`), draws the boxes, writes `processed_frame.jpg` and
-appends `database.csv` into the public `$web` container, then deletes the raw blob. The same `web/`
-frontend is served from `$web` and polls those two files — no API or database. Full design
+`processing.csv` and appends `database.csv` into the public `$web` container, then deletes the raw
+blob. The same `web/` frontend is served from `$web` and polls those files — no API or database. Full design
 (components, data flow, the no-recursion property): [`docs/architecture.md`](docs/architecture.md).
 
 ```sh
@@ -247,30 +264,18 @@ keeps the local sender cheap, so a sweep measures the **server under test**, not
 brief allows sending from "the same local device"). N distinct sources are a possible extension, but
 N local decoders can make the sender the bottleneck.
 
-- **VM** — ~10 cameras comfortably, 12–13 sitting at the throughput edge (non-deterministic), and
-  ≥14 collapsing (a memory/swap spiral on the 887 MiB `Standard_B2ats_v2`).
-- **Serverless** — ~128 cameras (~26 fps), roughly 10× the VM; the ceiling is **AI Vision
-  throughput** and the failure mode is a 429 throttling/retry backlog, not memory.
+- **VM** — **about 6 cameras**. At `N=6` it is healthy on every measure (73 of an offered 72 frames
+  processed, queue wait 19 ms, service 0.44 s, half of one core); at `N=8` it fails, processing 57 of
+  96. Every `N ≥ 7` failed during the session, though `N=8` came out healthy once, so the boundary is
+  a narrow band. The failure is a **stall**: the box swaps (0.57–0.64 GB resident set on 887 MiB) and
+  the queue stops draining for ~60 s, matching the sender's client timeout. The cause is **memory,
+  not CPU** — the CPU sits at half of one core while the machine is failing.
+- **Serverless** — **between 144 and 192 cameras**, roughly **24× the VM**. Up to `N=144` it keeps up
+  completely and the `raw` backlog drains to empty; at `N=192` the backlog builds to ~350, stalls at
+  138 and never drains. The ceiling is **AI Vision throughput** and the failure mode is a 429
+  throttling/retry backlog, not memory. Note that throttling sets in around `N=64–128`, well before
+  any frame is lost.
 
 Method, result tables, and the raw sweep captures: [`docs/performance.md`](docs/performance.md) and
 [`docs/sweeps/`](docs/sweeps/).
 
-## Getting started
-
-**Requirements:** Python ≥ 3.10 and the dependencies from [`pyproject.toml`](pyproject.toml)
-installed into a virtualenv (`pip install -e .`); lint/format with **ruff** (`line-length = 100`,
-double quotes).
-
-```sh
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
-
-python scripts/download_video.py "https://www.youtube.com/watch?v=3FXUw98rrUY"
-python src/local_test_platform.py   # run from the repo root; YOLO weights download automatically
-```
-
-## Course info
-
-Practical work = **70%** of the final grade; this assignment is **60%** of that. Deadlines:
-Assignment 1 on **18 Oct**, Assignment 2 (Docker + Quantum) on **25 Oct**.
